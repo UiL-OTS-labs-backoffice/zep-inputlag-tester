@@ -1,0 +1,217 @@
+// Imports
+
+plugin zep_iospp;
+plugin zep_display;
+
+// Parallel
+
+SPP parallel
+{
+    init()
+    {
+        spp_set_update_interval(1ms);
+	data_is_output = true;
+	
+	open(0);
+	if (error()) terminate;
+	
+	status_event_mask = SPP_STATUS_MASK;
+	data_event_mask = SPP_DATA_MASK;
+    }
+}
+
+// Window
+
+NormalWindow win
+{
+    init()
+    {
+//        display_device.open();
+//        display_device.open(VBLANK_MODE_FAKE);
+//        display_device.open(VBLANK_MODE_DRM);
+//        display_device.open(VBLANK_MODE_DWM);
+//        display_device.open(VBLANK_MODE_DDRAW);
+
+        // Fastest response is achieved with VBLANK_MODE_NONE
+	// even though the display does still appear to be synced
+	// to refresh timing
+        display_device.open(VBLANK_MODE_NONE);
+
+        title = "Display response time test";
+        size = 800, display_device.height;
+        alignment = ALIGN_CENTER, ALIGN_CENTER;
+
+        if (os_name() == "Windows")
+        {
+            blit_full_window = true;
+//            flush_after_blit = true;  // don't use
+        }
+        else
+        {
+            flush_after_blit = true;
+        }
+
+        show();
+
+	
+
+        show_page(page);
+    }
+}
+
+// Page
+
+Page page
+{
+    bool testing;
+
+    init()
+    {
+        canvas.start(now());
+    }
+
+    on_event:close()
+    {
+        terminate;
+    }
+
+
+    on_event:key_press()
+    {
+        if (input_key == KEY_Escape)
+        {
+            terminate;
+        }
+
+        else if (input_key == KEY_F1)
+        {
+            win.target_head = 0;
+        }
+        else if (input_key == KEY_F2)
+        {
+            if (display_device.num_heads >= 2) win.target_head = 1;
+        }
+        else if (input_key == KEY_F3)
+        {
+            if (display_device.num_heads >= 3) win.target_head = 2;
+        }
+        else if (input_key == KEY_F4)
+        {
+            if (display_device.num_heads >= 4) win.target_head = 3;
+        }
+        else if (input_key == KEY_F10)
+        {
+            win.is_maximized = !win.is_maximized;
+        }
+        else if (input_key == KEY_F11)
+        {
+            win.is_fullscreen =  !win.is_fullscreen;
+        }
+
+        else if (input_key == '1')
+        {
+            win.flush_after_blit = true;
+            println("Flush after blit: enabled");
+        }
+        else if (input_key == '2')
+        {
+            win.flush_after_blit = false;
+            println("Flush after blit: disabled");
+        }
+
+        else if (input_key == '3')
+        {
+            win.blit_full_window = true;
+            println("Blit full window: enabled");
+        }
+        else if (input_key == '4')
+        {
+            win.blit_full_window = false;
+            println("Blit full window: disabled");
+        }
+
+        else if (input_key == KEY_Shift_L)
+        {
+	    canvas.start_pulse();
+        }
+
+    }
+
+    on_event:key_release()
+    {
+        if (input_key == KEY_Shift_L)
+	{
+	    canvas.end_pulse();
+	}
+    }
+
+    CanvasGadget canvas
+    {
+        time showtime;
+	dur one_frame;
+
+        init()
+        {
+            fill_pattern_color = rgb:FF111111;
+            one_frame = display_device.num_frames_to_duration(0, 1);
+        }
+
+	on_event:resize()
+        {
+            // offset_x = actual_width / 2.0;
+            // offset_y = actual_height / 2.0;
+           rect1.width = actual_width;
+           rect1.height = actual_height;
+        }
+
+        void start_pulse()
+	{
+            showtime = now() + 100ms;
+	    rect1.start(showtime);
+            parallel.start_data(0xFF, rect1.expected_start_time);
+        }
+
+        void end_pulse()
+	{
+            parallel.stop_data(0x0, now());
+            rect1.stop();
+        }
+
+        RectangleShape rect1
+        {
+            init()
+            {
+                x = 0;
+                y = 0;
+                fill_pattern_color = rgb:FFEEEEEE;
+                // is_visible = true;
+            }
+        }
+
+    }
+}
+
+
+
+// Start
+
+start()
+{
+    parallel.write_data(0x0);    
+    println("Starting test.");
+    println("Press left shift to flash screen and send a parallel pulse.");
+    println("All available keys:");
+    println("  F1                move window to head 1");
+    println("  F2                move window to head 2 (if present)");
+    println("  F3                move window to head 3 (if present)");
+    println("  F4                move window to head 4 (if present)");
+    println("  F10               toggle maximize window");
+    println("  F11               toggle fullscreen window");
+    println("  Left shift        flash screen and send parallel pulse");
+    println("  m                 toggle miss a frame every 60 frames");
+    println("  1                 enable flush-after-blit option");
+    println("  2                 disable flush-after-blit option");
+    println("  3                 enable blit-full-window option");
+    println("  4                 disable blit-full-window option");
+    println("  Esc               exit");
+}
