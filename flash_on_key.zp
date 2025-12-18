@@ -28,14 +28,14 @@ NormalWindow win
     {
 //        display_device.open();
 //        display_device.open(VBLANK_MODE_FAKE);
-//        display_device.open(VBLANK_MODE_DRM);
+        display_device.open(VBLANK_MODE_DRM);
 //        display_device.open(VBLANK_MODE_DWM);
 //        display_device.open(VBLANK_MODE_DDRAW);
 
         // Fastest response is achieved with VBLANK_MODE_NONE
 	// even though the display does still appear to be synced
 	// to refresh timing
-        display_device.open(VBLANK_MODE_NONE);
+//         display_device.open(VBLANK_MODE_NONE);
 
         title = "Display response time test";
         size = 800, display_device.height;
@@ -158,14 +158,14 @@ Page page
 
 	on_event:resize()
         {
-            // offset_x = actual_width / 2.0;
-            // offset_y = actual_height / 2.0;
            rect1.width = actual_width;
            rect1.height = actual_height;
         }
 
         void start_pulse()
 	{
+	    // 100ms is arbitrary, we just want to give Zep plenty
+	    // of time to prepare the frames
             showtime = now() + 100ms;
 	    rect1.start(showtime);
             parallel.start_data(0xFF, rect1.expected_start_time);
@@ -173,8 +173,11 @@ Page page
 
         void end_pulse()
 	{
-            parallel.stop_data(0x0, now());
-            rect1.stop();
+	    // We employ the same timing strategy for the end of the pulse,
+	    // should anyone want to measure the inverse
+            showtime = now() + 100ms;
+	    rect1.stop(showtime);
+            parallel.stop_data(0x0, rect1.expected_finish_time);
         }
 
         RectangleShape rect1
